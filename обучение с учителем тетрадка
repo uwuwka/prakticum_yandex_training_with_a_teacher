@@ -173,8 +173,8 @@ best_accuracy_RF = 0
 best_f1_RF=0
 best_est_RF = 0
 best_depth_RF = 0
-for est in tqdm(range(10,200,10)):
-    for depth in range(2,25):
+for est in tqdm(range(10,2000,10)):
+    for depth in range(2,100):
         RF = RandomForestClassifier(random_state = 12345,n_estimators = est, max_depth = depth)
         RF.fit(features_train,target_train)
         prediction_valid_RF = RF.predict(features_valid)
@@ -449,8 +449,8 @@ best_accuracy_RF_upsampled = 0
 best_f1_RF_upsampled = 0
 best_est_RF_upsampled = 0
 best_depth_RF_upsampled = 0
-for est in tqdm(range(10,200,10)):
-    for depth in range(2,25):
+for est in tqdm(range(10,2000,10)):
+    for depth in range(2,100):
         RF_upsampled = RandomForestClassifier(random_state = 12345,n_estimators = est, max_depth = depth)
         RF_upsampled.fit(features_train_upsampled, target_train_upsampled)
         prediction_valid_RF_upsampled = RF_upsampled.predict(features_valid)
@@ -531,8 +531,8 @@ best_accuracy_RF_downsampled = 0
 best_f1_RF_downsampled=0
 best_est_RF_downsampled = 0
 best_depth_RF_downsampled = 0
-for est in tqdm(range(10,200,10)):
-    for depth in range(2,25):
+for est in tqdm(range(10,2000,10)):
+    for depth in range(2,100):
         RF_downsampled = RandomForestClassifier(random_state = 12345,n_estimators = est, max_depth = depth)
         RF_downsampled.fit(features_downsampled_train, target_downsampled_train)
         prediction_valid_RF_downsampled = RF_downsampled.predict(features_valid)
