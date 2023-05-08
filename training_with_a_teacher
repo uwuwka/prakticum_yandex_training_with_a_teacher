@@ -9,6 +9,7 @@
 # Дополнительно измеряйте *AUC-ROC*, сравнивайте её значение с *F1*-мерой.
 # 
 # Источник данных: [https://www.kaggle.com/barelydedicated/bank-customer-churn-modeling](https://www.kaggle.com/barelydedicated/bank-customer-churn-modeling)
+
 # ## Подготовка данных
 
 from tqdm import tqdm
@@ -173,8 +174,8 @@ best_accuracy_RF = 0
 best_f1_RF=0
 best_est_RF = 0
 best_depth_RF = 0
-for est in tqdm(range(10,2000,10)):
-    for depth in range(2,100):
+for est in tqdm(range(10,200,10)):
+    for depth in range(2,25):
         RF = RandomForestClassifier(random_state = 12345,n_estimators = est, max_depth = depth)
         RF.fit(features_train,target_train)
         prediction_valid_RF = RF.predict(features_valid)
@@ -210,7 +211,7 @@ for depth in tqdm(range(2,52)):
         best_DT = DT
         best_accuracy_DT = accuracy_DT
         best_depth_DT = depth
-        
+
 DT_probabilities_one_valid = best_DT.predict_proba(features_valid)[:, 1]
 
 print(rec_prec_f1(target_valid,prediction_valid_DT))
@@ -218,6 +219,24 @@ print('AUC-ROC',roc_auc_score(target_valid, DT_probabilities_one_valid))
 print()
 print('лучшая модель с параметрами:', 'глубина-',best_depth_DT,)
 
+
+best_LR = None
+best_f1_LR=0
+best_accuracy_LR = 0
+for iter_ in tqdm([100, 200, 500, 1000, 5000]):
+    LR = LogisticRegression(random_state = 12345,max_iter=iter_,tol=1e-5,solver = 'lbfgs' )
+    LR.fit(features_train,target_train)
+    prediction_valid_LR = LR.predict(features_valid)
+    accuracy_LR = accuracy_score(prediction_valid_LR, target_valid)
+    f1_LR = f1_score(prediction_valid_LR, target_valid)
+    if best_f1_LR < f1_LR:
+        best_LR = LR
+        best_accuracy_LR = accuracy_LR
+
+LR_probabilities_one_valid = best_LR.predict_proba(features_valid)[:, 1]            
+
+print(rec_prec_f1(target_valid,prediction_valid_LR))
+print('AUC-ROC',roc_auc_score(target_valid, LR_probabilities_one_valid))
 
 # Вывод: Видим низкое значение F1, следовательно низкое качество моделей.
 
@@ -228,17 +247,19 @@ def all_models_share(features_train, target_train, features_valid, target_valid)
     model_DT = DecisionTreeClassifier(random_state = 12345, max_depth = 9)
     model_DT.fit(features_train, target_train)
     DT_share = pd.Series(model_DT.predict(features_valid)).value_counts(normalize = 1)
-    
-    
-    
+
+
+
     model_RF = RandomForestClassifier(random_state = 12345,n_estimators = 40, max_depth = 16)
     model_RF.fit(features_train, target_train)
     RF_share = pd.Series(model_RF.predict(features_valid)).value_counts(normalize = 1)
-    
 
-    
+    model_LR = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'lbfgs')
+    model_LR.fit(features_train, target_train)
+    LR_share = pd.Series(model_LR.predict(features_valid)).value_counts(normalize = 1)
 
-    
+
+
     print("Доли ответов:")
     print()
     print("Дерево решений", DT_share)
@@ -294,6 +315,11 @@ plot_roc_curve(fper, tper)
 
 # Попробуем обучать логистическую регресию сбалансировав классы
 
+model_LR = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'lbfgs')
+model_LR.fit(features_train, target_train)
+LR_probabilities_one_valid_class_weight = model_LR.predict_proba(features_valid)[:, 1]
+print("Score", model_LR.score(features_valid, target_valid))
+print("AUC-ROC", roc_auc_score(target_valid, LR_probabilities_one_valid_class_weight))
 
 fper, tper, thresholds = roc_curve(target_valid, LR_probabilities_one_valid_class_weight) 
 plot_roc_curve(fper, tper)
@@ -314,13 +340,13 @@ def upsample(features, target, repeat, upsampled_сlass):
     features_ones = features[target == 1]
     target_zeros = target[target == 0]
     target_ones = target[target == 1]
-    
+
     if upsampled_сlass == 0:
         features_upsampled = pd.concat([features_zeros]* repeat + [features_ones] )
         target_upsampled = pd.concat([target_zeros]* repeat + [target_ones] )
         features_upsampled, target_upsampled = shuffle(
         features_upsampled, target_upsampled, random_state=12345)
-        
+
     elif upsampled_сlass == 1:
         features_upsampled = pd.concat([features_zeros] + [features_ones] * repeat)
         target_upsampled = pd.concat([target_zeros] + [target_ones] * repeat)
@@ -329,9 +355,9 @@ def upsample(features, target, repeat, upsampled_сlass):
     else:
         features_upsampled = 0
         target_upsampled = 0  
-        
-        
-       
+
+
+
     return features_upsampled, target_upsampled
 
 
@@ -347,10 +373,10 @@ def downsample(features, target, fraction):
         [features_zeros.sample(frac=fraction, random_state=12345)] + [features_ones])
     target_downsampled = pd.concat(
         [target_zeros.sample(frac=fraction, random_state=12345)] + [target_ones])
-    
+
     features_downsampled, target_downsampled = shuffle(
         features_downsampled, target_downsampled, random_state=12345)
-    
+
     return features_downsampled, target_downsampled
 
 
@@ -392,66 +418,73 @@ target_downsampled_train.plot(kind ='hist', bins=3, figsize=(5,5))
 
 # Решающее дерево
 
-best_LR = Нет
-best_f1_LR=0
-best_accuracy_LR = 0
-Для iter_ в TQDM([100, 200, 500, 1000, 5000]):
-    LR = LogisticRegression(random_state = 12345,max_iter=iter_,tol=1e-5,solver = 'lbfgs' )
-    LR.fit(features_train,target_train)
-    prediction_valid_LR = LR.predict(features_valid)
-    accuracy_LR = accuracy_score(prediction_valid_LR, target_valid)
-    f1_LR = f1_score(prediction_valid_LR, target_valid)
- Если best_f1_LR < f1_LR:
-        best_LR = LR
-        best_accuracy_LR = accuracy_LR
+best_DT_upsampled = None
+best_accuracy_DT_upsampled = 0
+best_f1_DT_upsampled=0
+best_depth_DT_upsampled = 0
+for depth in tqdm(range(2,52)):
+    DT_upsampled = DecisionTreeClassifier(random_state = 12345, max_depth = depth)
+    DT_upsampled.fit(features_train_upsampled, target_train_upsampled)
+    prediction_valid_DT_upsampled = DT_upsampled.predict(features_valid)
+    accuracy_DT_upsampled = accuracy_score(prediction_valid_DT_upsampled, target_valid)
+    f1_DT_upsampled = f1_score(prediction_valid_DT_upsampled, target_valid)
+    if best_f1_DT_upsampled < f1_DT_upsampled:
+        best_f1_DT_upsampled = f1_DT_upsampled
+        best_DT_upsampled = DT_upsampled
+        best_accuracy_DT_upsampled = accuracy_DT_upsampled
+        best_depth_DT_upsampled = depth
 
-LR_probabilities_one_valid = best_LR.predict_proba(features_valid)[:, 1]            
+DT_upsampled_probabilities_one_valid = best_DT_upsampled.predict_proba(features_valid)[:, 1]
 
-print(rec_prec_f1(target_valid,prediction_valid_LR))
-print('AUC-ROC',roc_auc_score(target_valid, LR_probabilities_one_valid))
-
-# Вывод: Видим низкое значение F1, следовательно низкое качество моделей.
-
-# Функция для отображения соотношения ответов моделей (сколько 0, сколько 1)
-def all_models_share(features_train, target_train, features_valid, target_valid)
-    model_RF.fit(features_train, target_train)
- RF_share = пд. Series(model_RF.predict(features_valid))).value_counts(нормализовать = 1)
-
-    model_LR = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'lbfgs')
-    model_LR.fit(features_train, target_train)
- LR_share = пд. Series(model_LR.predict(features_valid))).value_counts(нормализовать = 1)
+print(rec_prec_f1(target_valid,prediction_valid_DT_upsampled))
+print('AUC-ROC',roc_auc_score(target_valid, DT_upsampled_probabilities_one_valid))
+print()
+print('лучшая модель с параметрами:', 'глубина-',best_depth_DT_upsampled)
 
 
+# Случайный лес
 
 
-@@ -314,11 +294,6 @@ plot_roc_curve(fper, tper)
+best_RF_upsampled = None
+best_accuracy_RF_upsampled = 0
+best_f1_RF_upsampled = 0
+best_est_RF_upsampled = 0
+best_depth_RF_upsampled = 0
+for est in tqdm(range(1013,20000,10100)):
+    for depth in range(2,500):
+        RF_upsampled = RandomForestClassifier(random_state = 12345,n_estimators = est, max_depth = depth)
+        RF_upsampled.fit(features_train_upsampled, target_train_upsampled)
+        prediction_valid_RF_upsampled = RF_upsampled.predict(features_valid)
+        accuracy_RF_upsampled = accuracy_score(prediction_valid_RF_upsampled, target_valid)
+        f1_RF_upsampled = f1_score(prediction_valid_RF_upsampled, target_valid)
+        if best_f1_RF_upsampled < f1_RF_upsampled:
+            best_f1_RF_upsampled = f1_RF_upsampled
+            best_RF_upsampled = RF_upsampled
+            best_depth_RF_upsampled = depth
+            best_est_RF_upsampled = est
+            best_accuracy_RF_upsampled = accuracy_RF_upsampled
 
-# Попробуем обучать логистическую регресию сбалансировав классы
 
-model_LR = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'lbfgs')
-model_LR.fit(features_train, target_train)
-LR_probabilities_one_valid_class_weight = model_LR.predict_proba(features_valid)[:, 1]
-print("Score", model_LR.score(features_valid, target_valid))
-print("AUC-ROC", roc_auc_score(target_valid, LR_probabilities_one_valid_class_weight))
+RF_upsampled_probabilities_one_valid = best_RF_upsampled.predict_proba(features_valid)[:, 1]
 
-fper, tper, пороговые значения = roc_curve(target_valid, LR_probabilities_one_valid_class_weight) 
-plot_roc_curve(fper, tper)
-@@ -472,27 +447,6 @@ print()
+print(rec_prec_f1(target_valid,prediction_valid_RF_upsampled))
+print('AUC-ROC',roc_auc_score(target_valid, RF_upsampled_probabilities_one_valid))
+print()
 print('лучшая модель с параметрами:', 'глубина-',best_depth_RF_upsampled,'','количество ветвей-',best_est_RF_upsampled)
 
 
 # Логистическая регрессия
 
-best_LR_upsampled = Нет
+best_LR_upsampled = None
 best_f1_LR_upsampled=0
 best_accuracy_LR_upsampled = 0
-для est в tqdm(range(2,52)):
+for est in tqdm(range(2,52)):
     LR_upsampled = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'liblinear' )
     LR_upsampled.fit(features_train_upsampled, target_train_upsampled)
     LR_prediction_upsampled = LR_upsampled.predict(features_valid)
     accuracy_LR_upsampled = accuracy_score(LR_prediction_upsampled, target_valid)
     f1_LR_upsampled = f1_score(LR_prediction_upsampled, target_valid)
- Если best_f1_LR_upsampled < f1_LR_upsampled:
+    if best_f1_LR_upsampled < f1_LR_upsampled:
         best_f1_LR_upsampled = f1_LR_upsampled
         best_LR_upsampled = LR_upsampled
         best_accuracy_LR_upsampled = accuracy_LR_upsampled
@@ -464,20 +497,78 @@ print('AUC-ROC',roc_auc_score(target_valid, LR_upsampled_probabilities_one_valid
 # проверим метод 'downsample'
 
 # Решающее дерево
-@@ -558,33 +512,14 @@ print('лучшая модель с параметрами:', 'глубина-',
 
 
 
-best_LR_downsampled = Нет
+best_DT_downsampled = None
+best_accuracy_DT_downsampled = 0
+best_f1_DT_downsampled=0
+best_depth_DT_downsampled = 0
+for depth in tqdm(range(2,52)):
+    DT_downsampled = DecisionTreeClassifier(random_state = 12345, max_depth = depth)
+    DT_downsampled.fit(features_downsampled_train, target_downsampled_train)
+    prediction_valid_DT_downsampled = DT_downsampled.predict(features_valid)
+    accuracy_DT_downsampled = accuracy_score(prediction_valid_DT_downsampled, target_valid)
+    f1_DT_downsampled= f1_score(prediction_valid_DT_downsampled, target_valid)
+    if best_f1_DT_downsampled < f1_DT_downsampled:
+        best_f1_DT_downsampled = f1_DT_downsampled
+        best_DT_downsampled = DT_downsampled
+        best_accuracy_DT_downsampled = accuracy_DT_downsampled
+        best_depth_DT_downsampled = depth
+
+DT_downsampled_probabilities_one_valid = best_DT_downsampled.predict_proba(features_valid)[:, 1]
+
+print(rec_prec_f1(target_valid,prediction_valid_DT_downsampled))
+print('AUC-ROC',roc_auc_score(target_valid, DT_downsampled_probabilities_one_valid))
+print()
+print('лучшая модель с параметрами:', 'глубина-',best_depth_DT_downsampled)
+
+
+# Случайный лес
+
+
+best_RF_downsampled = None
+best_accuracy_RF_downsampled = 0
+best_f1_RF_downsampled=0
+best_est_RF_downsampled = 0
+best_depth_RF_downsampled = 0
+for est in tqdm(range(10,200,10)):
+    for depth in range(2,25):
+        RF_downsampled = RandomForestClassifier(random_state = 12345,n_estimators = est, max_depth = depth)
+        RF_downsampled.fit(features_downsampled_train, target_downsampled_train)
+        prediction_valid_RF_downsampled = RF_downsampled.predict(features_valid)
+        accuracy_RF_downsampled = accuracy_score(prediction_valid_RF_downsampled, target_valid)
+        f1_RF_downsampled = f1_score(prediction_valid_RF_downsampled, target_valid)
+        if best_f1_RF_downsampled < f1_RF_downsampled:
+            best_f1_RF_downsampled = f1_RF_downsampled
+            best_RF_downsampled = RF_downsampled
+            best_depth_RF_downsampled = depth
+            best_est_RF_downsampled = est
+            best_accuracy_RF_downsampled = accuracy_RF_downsampled
+
+
+RF_downsampled_probabilities_one_valid = best_RF_downsampled.predict_proba(features_valid)[:, 1]
+
+print(rec_prec_f1(target_valid,prediction_valid_RF_downsampled))
+print('AUC-ROC',roc_auc_score(target_valid, RF_downsampled_probabilities_one_valid))
+print()
+print('лучшая модель с параметрами:', 'глубина-',best_depth_RF_downsampled,'','количество ветвей-',best_est_RF_downsampled)
+
+
+# Логистическая регрессия
+
+
+
+best_LR_downsampled = None
 best_f1_LR_downsampled=0
 best_accuracy_LR_downsampled = 0
-для est в tqdm(range(2,52)):
+for est in tqdm(range(2,52)):
     LR_downsampled = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'liblinear' )
     LR_downsampled.fit(features_downsampled_train, target_downsampled_train)
     LR_prediction_downsampled = LR_downsampled.predict(features_valid)
     accuracy_LR_downsampled = accuracy_score(LR_prediction_downsampled, target_valid)
     f1_LR_downsampled = f1_score(LR_prediction_downsampled, target_valid)
- Если best_f1_LR_downsampled < f1_LR_downsampled:
+    if best_f1_LR_downsampled < f1_LR_downsampled:
         best_f1_LR_downsampled = f1_LR_downsampled
         best_LR_downsampled = LR_downsampled
         best_accuracy_LR_downsampled = accuracy_LR_downsampled
@@ -492,27 +583,26 @@ print('AUC-ROC',roc_auc_score(target_valid, LR_downsampled_probabilities_one_val
 
 
 
-печать(best_accuracy_RF)
-печать(best_accuracy_DT)
-печать(best_accuracy_LR)
-
+print(best_accuracy_RF)
+print(best_accuracy_DT)
+print(best_accuracy_LR)
 
 
 # проверим Точность моделей на сбалансированной увеличенной выборке
-@@ -593,15 +528,15 @@ print(best_accuracy_LR)
 
-печать(best_accuracy_RF_upsampled)
-печать(best_accuracy_DT_upsampled)
-печать(best_accuracy_LR_upsampled)
 
+
+print(best_accuracy_RF_upsampled)
+print(best_accuracy_DT_upsampled)
+print(best_accuracy_LR_upsampled)
 
 
 # проверим Точность моделей на сбалансированной уменьшенной выборке
 
 
-печать(best_accuracy_RF_downsampled)
-печать(best_accuracy_DT_downsampled)
-печать(best_accuracy_LR_downsampled)
+print(best_accuracy_RF_downsampled)
+print(best_accuracy_DT_downsampled)
+print(best_accuracy_LR_downsampled)
 
 
 # ## Тестирование модели
@@ -622,8 +712,3 @@ print('AUC-ROC финальной модели:', roc_auc_score(target_test, RF_
 # - [x]  Выполнен шаг 4: проведено тестирование
 # - [x]  Удалось достичь *F1*-меры не менее 0.59
 # - [x]  Исследована метрика *AUC-ROC*
-
-
-
-
-
