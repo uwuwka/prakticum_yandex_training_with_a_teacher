@@ -22,7 +22,6 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score, roc_auc_score, roc_curve, confusion_matrix
 from sklearn.preprocessing import OneHotEncoder
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
@@ -220,24 +219,6 @@ print()
 print('лучшая модель с параметрами:', 'глубина-',best_depth_DT,)
 
 
-best_LR = None
-best_f1_LR=0
-best_accuracy_LR = 0
-for iter_ in tqdm([100, 200, 500, 1000, 5000]):
-    LR = LogisticRegression(random_state = 12345,max_iter=iter_,tol=1e-5,solver = 'lbfgs' )
-    LR.fit(features_train,target_train)
-    prediction_valid_LR = LR.predict(features_valid)
-    accuracy_LR = accuracy_score(prediction_valid_LR, target_valid)
-    f1_LR = f1_score(prediction_valid_LR, target_valid)
-    if best_f1_LR < f1_LR:
-        best_LR = LR
-        best_accuracy_LR = accuracy_LR
-
-LR_probabilities_one_valid = best_LR.predict_proba(features_valid)[:, 1]            
-
-print(rec_prec_f1(target_valid,prediction_valid_LR))
-print('AUC-ROC',roc_auc_score(target_valid, LR_probabilities_one_valid))
-
 # Вывод: Видим низкое значение F1, следовательно низкое качество моделей.
 
 # Функция для отображения соотношения ответов моделей (сколько 0, сколько 1)
@@ -254,9 +235,6 @@ def all_models_share(features_train, target_train, features_valid, target_valid)
     model_RF.fit(features_train, target_train)
     RF_share = pd.Series(model_RF.predict(features_valid)).value_counts(normalize = 1)
 
-    model_LR = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'lbfgs')
-    model_LR.fit(features_train, target_train)
-    LR_share = pd.Series(model_LR.predict(features_valid)).value_counts(normalize = 1)
 
 
 
@@ -265,9 +243,6 @@ def all_models_share(features_train, target_train, features_valid, target_valid)
     print("Дерево решений", DT_share)
     print()
     print("Случайный лес ", RF_share)
-    print()
-    print("Логистческая регрессия", LR_share)
-
 
 # Применим функцию отображения соотношения ответов моделей
 
@@ -309,20 +284,8 @@ def plot_roc_curve(fper, tper):
     plt.show()
 
 
-fper, tper, thresholds = roc_curve(target_valid, LR_probabilities_one_valid)
-plot_roc_curve(fper, tper)
-
 
 # Попробуем обучать логистическую регресию сбалансировав классы
-
-model_LR = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'lbfgs')
-model_LR.fit(features_train, target_train)
-LR_probabilities_one_valid_class_weight = model_LR.predict_proba(features_valid)[:, 1]
-print("Score", model_LR.score(features_valid, target_valid))
-print("AUC-ROC", roc_auc_score(target_valid, LR_probabilities_one_valid_class_weight))
-
-fper, tper, thresholds = roc_curve(target_valid, LR_probabilities_one_valid_class_weight) 
-plot_roc_curve(fper, tper)
 
 
 # Вывод: Отстутсвие улучшений - тоже результат. Высокая точность модели объясняется высокой долей негативных ответов в валидационной выборке.
@@ -471,29 +434,6 @@ print(rec_prec_f1(target_valid,prediction_valid_RF_upsampled))
 print('AUC-ROC',roc_auc_score(target_valid, RF_upsampled_probabilities_one_valid))
 print()
 print('лучшая модель с параметрами:', 'глубина-',best_depth_RF_upsampled,'','количество ветвей-',best_est_RF_upsampled)
-
-
-# Логистическая регрессия
-
-best_LR_upsampled = None
-best_f1_LR_upsampled=0
-best_accuracy_LR_upsampled = 0
-for est in tqdm(range(2,52)):
-    LR_upsampled = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'liblinear' )
-    LR_upsampled.fit(features_train_upsampled, target_train_upsampled)
-    LR_prediction_upsampled = LR_upsampled.predict(features_valid)
-    accuracy_LR_upsampled = accuracy_score(LR_prediction_upsampled, target_valid)
-    f1_LR_upsampled = f1_score(LR_prediction_upsampled, target_valid)
-    if best_f1_LR_upsampled < f1_LR_upsampled:
-        best_f1_LR_upsampled = f1_LR_upsampled
-        best_LR_upsampled = LR_upsampled
-        best_accuracy_LR_upsampled = accuracy_LR_upsampled
-
-LR_upsampled_probabilities_one_valid = best_LR_upsampled.predict_proba(features_valid)[:, 1]            
-
-print(rec_prec_f1(target_valid, LR_prediction_upsampled))
-print('AUC-ROC',roc_auc_score(target_valid, LR_upsampled_probabilities_one_valid))
-
 # проверим метод 'downsample'
 
 # Решающее дерево
@@ -555,37 +495,13 @@ print()
 print('лучшая модель с параметрами:', 'глубина-',best_depth_RF_downsampled,'','количество ветвей-',best_est_RF_downsampled)
 
 
-# Логистическая регрессия
-
-
-
-best_LR_downsampled = None
-best_f1_LR_downsampled=0
-best_accuracy_LR_downsampled = 0
-for est in tqdm(range(2,52)):
-    LR_downsampled = LogisticRegression(random_state = 12345,max_iter= 1000,tol=1e-5,solver = 'liblinear' )
-    LR_downsampled.fit(features_downsampled_train, target_downsampled_train)
-    LR_prediction_downsampled = LR_downsampled.predict(features_valid)
-    accuracy_LR_downsampled = accuracy_score(LR_prediction_downsampled, target_valid)
-    f1_LR_downsampled = f1_score(LR_prediction_downsampled, target_valid)
-    if best_f1_LR_downsampled < f1_LR_downsampled:
-        best_f1_LR_downsampled = f1_LR_downsampled
-        best_LR_downsampled = LR_downsampled
-        best_accuracy_LR_downsampled = accuracy_LR_downsampled
-
-LR_downsampled_probabilities_one_valid = best_LR_downsampled.predict_proba(features_valid)[:, 1]            
-
-print(rec_prec_f1(target_valid, LR_prediction_downsampled))
-print('AUC-ROC',roc_auc_score(target_valid, LR_downsampled_probabilities_one_valid))
-
-
 # проверим Точность моделей на выборке с дисбалансом
 
 
 
 print(best_accuracy_RF)
 print(best_accuracy_DT)
-print(best_accuracy_LR)
+
 
 
 # проверим Точность моделей на сбалансированной увеличенной выборке
@@ -594,7 +510,7 @@ print(best_accuracy_LR)
 
 print(best_accuracy_RF_upsampled)
 print(best_accuracy_DT_upsampled)
-print(best_accuracy_LR_upsampled)
+
 
 
 # проверим Точность моделей на сбалансированной уменьшенной выборке
@@ -602,7 +518,7 @@ print(best_accuracy_LR_upsampled)
 
 print(best_accuracy_RF_downsampled)
 print(best_accuracy_DT_downsampled)
-print(best_accuracy_LR_downsampled)
+
 
 
 # ## Тестирование модели
