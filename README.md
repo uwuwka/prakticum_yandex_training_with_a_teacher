@@ -1,12 +1,18 @@
-проект обучение с учителем
+teacher training project
 
-описание:
-Из «Бета-Банка» стали уходить клиенты. Каждый месяц. Немного, но заметно. Банковские маркетологи посчитали: сохранять текущих клиентов дешевле, чем привлекать новых.
+description:
+Customers began to leave Beta-Bank. Every month. A little, but noticeable. Banking marketers figured it was cheaper to keep current customers than to attract new ones.
 
-спрогнозировано, уйдёт клиент из банка в ближайшее время или нет.
+it is predicted whether the client will leave the bank in the near future or not.
 
-в проекте были расмотрены 3 модели с различныи гиперпараметрамии:LogisticRegression,RandomForestClassifier,DecisionTreeClassifier. Из этих моделей была выбрана модель с наилучшем соотношением скорости и точности.
-Построены модели с предельно большим значением F1-меры.
-Дополнительно измерен AUC-ROC и сравнен со значением с F1-мерой.
+3 models with different hyperparameters were considered in the project: LogisticRegression, RandomForestClassifier, DecisionTreeClassifier. From these models, the model with the best ratio of speed and accuracy was selected.
+Models with an extremely large value of the F1-measure are constructed.
+Additionally measured AUC-ROC and compared with the value with the F1-measure.
 
-Результатом работы моделей стали высокие показатели AUC-ROC и F1-меры, что нам говорит о высоком качестве самих моделей т.е. модели делают свои предсказания довольно точно и этим предсказаниям можно верить.
+The result of the work of the models was high AUC-ROC and F1-measures, which tells us about the high quality of the models themselves, i.e. models make their predictions quite accurately and these predictions can be trusted.
+the final model was tested for adequacy in comparison with the contant model:
+accuracy_score with model constant: 0.791
+accuracy_score of the final model: 0.837
+AUC-ROC model constant: 0.5
+AUC-ROC of the final model: 0.849
+model with parameters: depth - 12 number of branches - 20 and random state - 12345
